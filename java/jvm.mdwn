@@ -1,0 +1,43 @@
+[refer](https://www.jb51.net/it/753914.html)
+[refer2](https://www.jb51.net/it/743799.html)
+[refer3](https://www.jb51.net/it/743429.html)
+
+
+![JVM内存结构](https://gitee.com/lylw/image/raw/master/jvm/rda.jpg)
+![堆内存划分](https://gitee.com/lylw/image/raw/master/jvm/alloc.jpeg)
+#### 地方方式
+
+#### JVM加载class文件的原理机制
+- 加载
+- 连接
+    - 验证
+    - 准备：为静态变量分配内存并设置默认的初始值
+    - 解析：将符号引用替换为直接引用
+- 初始化：如果类存在直接的父类并且这个类还没有被初始化，那么就先初始化父类；依次执行初始化语句
+
+#### 对象创建过程
+- 首先去检查这个指令的参数是否能在常量池中定义到一个类的符号引用，然后加载这个类
+- 为对象分配内存。 指针碰撞 空闲列表 。。 本地线程分配缓冲(TLAB)
+- 将除对象头外的对象内存空间初始化为0
+- 对对象头进行必要设置
+
+
+#### 双亲委派模型
+
+[refer](https://mp.weixin.qq.com/s/Q0MqcvbeI7gAcJH5ZaQWgA)
+
+
+#### 垃圾收集器
+
+- Serial收集器： 单线程的收集器，收集垃圾时，必须stop the world，使用复制算法。
+- ParNew收集器： Serial收集器的多线程版本，也需要stop the world，复制算法。
+- Parallel Scavenge收集器： 新生代收集器，复制算法的收集器，并发的多线程收集器，目标是达到一个可控的吞吐量。如果虚拟机总共运行100分钟，其中垃圾花掉1分钟，吞吐量就是99%。
+- Serial Old收集器： 是Serial收集器的老年代版本，单线程收集器，使用标记整理算法。
+- Parallel Old收集器： 是Parallel Scavenge收集器的老年代版本，使用多线程，标记-整理算法。
+- CMS(Concurrent Mark Sweep) 收集器： 是一种以获得最短回收停顿时间为目标的收集器，标记清除算法，运作过程：初始标记，并发标记，重新标记，并发清除，收集结束会产生大量空间碎片。
+- G1收集器： 标记整理算法实现，运作流程主要包括以下：初始标记，并发标记，最终标记，筛选标记。不会产生空间碎片，可以精确地控制停顿
+
+CMS和G1的区别：
+- CMS是老年代的收集器，可以配合新生代Serial和ParNew收集器一起使用；G1收集器收集范围是老年代和新生代，不需要结合其他收集器使用
+
+
