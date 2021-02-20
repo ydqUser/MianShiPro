@@ -73,37 +73,42 @@
 
 - kafka
 
-	- 每个消息写进去都会有一个offset，Consumer消费完数据，每隔一段时间会提交自己消费过的offset，下次消费就从offset后面继续消费
+	- 每个 Topic 可以划分多个分区（每个 Topic 至少有一个分区），同一 Topic 下的不同分区包含的消息是不同的。每个消息在被添加到分区时，都会被分配一个 offset，它是消息在此分区中的唯一编号，Kafka 通过 offset 保证消息在分区内的顺序，offset 的顺序不跨分区，即 Kafka 只保证在同一个分区内的消息是有序的
+- 每个消息写进去都会有一个offset，Consumer消费完数据，每隔一段时间会提交自己消费过的offset，下次消费就从offset后面继续消费
+	
+	  - 在内存中维护一个set，消费消息之前先去set查询该消息是否存在，存在则表示已经消费，则丢弃
+	  - 如果要写数据库，则拿唯一标识先去数据库查，数据库不存在再写入
+	  - 生产者发送消息的时候可以加上唯一标识，消费时先将id保存在redis，下次消费先去redis查询是否存在这个标识，没有再消费
+	
+- kafka多个consumer同时消费一个topic数据
 
-		- 在内存中维护一个set，消费消息之前先去set查询该消息是否存在，存在则表示已经消费，则丢弃
-		- 如果要写数据库，则拿唯一标识先去数据库查，数据库不存在再写入
-		- 生产者发送消息的时候可以加上唯一标识，消费时先将id保存在redis，下次消费先去redis查询是否存在这个标识，没有再消费
+  - 一个topic可以存在多个partition，一个group可以有对个consumer进行消费，一个consumer消费多个partition，一个partition只能被一个consumer消费
 
-### 如何解决消息丢失问题
+  ### 如何解决消息丢失问题
 
 - RabbitMQ（producer端解决）
 
-	- 事务同步机制
+  - 事务同步机制
 
-		- 发送数据之前开启channel.txSelect，然后发送消息，如果消息没有被Rabbitmq接收到，生产者会发生异常报错，这时候可以回滚事务channel.txRollBack,然后重试，接受消息成功之后可以提交事务channel.txCommit
+  	- 发送数据之前开启channel.txSelect，然后发送消息，如果消息没有被Rabbitmq接收到，生产者会发生异常报错，这时候可以回滚事务channel.txRollBack,然后重试，接受消息成功之后可以提交事务channel.txCommit
 
-			- 非常消耗性能
+  		- 非常消耗性能
 
-	- confirm机制
+  - confirm机制
 
-		- 每次发送消息会分配一个唯一id，Rabbitmq成功接收消息会返回一个ack，如果接收异常会回调nack接口重试
+  	- 每次发送消息会分配一个唯一id，Rabbitmq成功接收消息会返回一个ack，如果接收异常会回调nack接口重试
 
-	- confirm机制
+  - confirm机制
 
-		- 每次发送消息会分配一个唯一id，Rabbitmq成功接收消息会返回一个ack，如果接收异常会回调nack接口重试
+  	- 每次发送消息会分配一个唯一id，Rabbitmq成功接收消息会返回一个ack，如果接收异常会回调nack接口重试
 
-	- queue数据持久化到磁盘
+  - queue数据持久化到磁盘
 
 - kafka
 
-	- 关闭自动提交offset机制
-	- 设置topic至少用于2个partition副本
-	- 设置ack=all
+  - 关闭自动提交offset机制
+  - 设置topic至少用于2个partition副本
+  - 设置ack=all
 
 ### 如何保证消息的顺序性
 
