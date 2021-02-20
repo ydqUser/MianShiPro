@@ -1198,7 +1198,7 @@
 
   - 1.jar包
 
-    ```java
+    ```
     <dependency>
     			<groupId>org.elasticsearch.client</groupId>
     			<artifactId>transport</artifactId>
@@ -1278,7 +1278,7 @@
 
   - 2.EsUtil创建连接
 
-    ```kotlin
+    ```
     import org.elasticsearch.client.transport.TransportClient;
     import org.elasticsearch.common.settings.Settings;
     import org.elasticsearch.common.transport.TransportAddress;
@@ -1319,7 +1319,7 @@
 
   - 3.初始化es中索引模板
 
-    ```kotlin
+    ```
     /**
          * 判断索引是否存在
          * @param client
@@ -1359,7 +1359,7 @@
 
   - 模板与相关实体类转换
 
-    ```java
+    ```
     
     import java.io.IOException;
     import java.util.HashMap;
@@ -1475,7 +1475,7 @@
     }
     ```
 
-    ```kotlin
+    ```
     import java.io.Serializable;
     import java.text.DateFormat;
     import java.text.SimpleDateFormat;
@@ -1510,7 +1510,7 @@
 
     - 写
 
-    ```kotlin
+    ```
     /**
          * 向指定索引中批量插入数据
          * @param <T>
@@ -1542,7 +1542,7 @@
 
     * 读
 
-    ```kotlin
+    ```
     
     import java.io.IOException;
     import java.util.ArrayList;
@@ -2192,7 +2192,7 @@
 
 - 获取能实现结果的最优解
 
-  ```kotlin
+  ```
   package greedy;
   
   import java.util.ArrayList;
