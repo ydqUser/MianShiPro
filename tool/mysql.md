@@ -1,44 +1,72 @@
 
+<!-- TOC -->
+
 - [base](#base)
     - [范式](#范式)
-    - [DDL DML](#DDL DML)
+    - [DDL DML](#ddl-dml)
     - [复合主键与联合主键](#复合主键与联合主键)
 - [配置](#配置)
-    - [information_schema.tables](#information_schema)
+    - [information_schema](#information_schema)
 - [逻辑架构](#逻辑架构)
     - [表空间](#表空间)
     - [存储架构](#存储架构)
-        - [段(segment)](#段(segment))
-        - [区(extent)](#区(extent))
-        - [页(page)](#页(page))
+        - [段(segment)](#段segment)
+        - [区(extent)](#区extent)
+        - [页(page)](#页page)
+    - [表优化](#表优化)
 - [存储引擎](#存储引擎)
+    - [InnoDB](#innodb)
+        - [四大特性](#四大特性)
+    - [MyISAM与InnoDB的区别](#myisam与innodb的区别)
 - [查询](#查询)
 - [索引](#索引)
+    - [全文索引](#全文索引)
 - [事务](#事务)
-    - [事务模型ACID](#事务模型ACID)
+    - [事务模型ACID](#事务模型acid)
     - [隔离级别](#隔离级别)
         - [一致性保证](#一致性保证)
-- [锁](#锁)      
-    - [MVCC](#MVCC)  
-    - [使用方式：乐观锁、悲观锁](#使用方式：乐观锁、悲观锁)
-    - [锁级别：共享锁、排他锁、意向锁、间隙锁(Next-Key锁)](#锁级别：共享锁、排他锁、意向锁、间隙锁)
-    - [锁粒度：行级锁、表级锁、页级锁](#锁粒度：行级锁、表级锁、页级锁)
-    - [按操作&加锁方式](#按操作&加锁方式)
-        - [操作：DDL锁、DML锁](#操作：DDL锁、DML锁)
-        - [加锁方式：自动锁、显示锁](#加锁方式：自动锁、显示锁)
+- [锁](#锁)
+    - [MVCC](#mvcc)
+    - [使用方式：乐观锁、悲观锁](#使用方式乐观锁悲观锁)
+    - [锁级别：共享锁、排他锁、意向锁、间隙锁](#锁级别共享锁排他锁意向锁间隙锁)
+    - [锁粒度：行级锁、表级锁、页级锁](#锁粒度行级锁表级锁页级锁)
+    - [按操作&加锁方式](#按操作加锁方式)
+        - [操作：DDL锁、DML锁](#操作ddl锁dml锁)
+        - [加锁方式：自动锁、显示锁](#加锁方式自动锁显示锁)
     - [死锁](#死锁)
-    
+- [主从同步](#主从同步)
+- [分区分库分表](#分区分库分表)
+    - [分区](#分区)
+    - [分表](#分表)
+    - [分库](#分库)
+- [8.0和5.7的区别](#80和57的区别)
+    - [隐藏索引](#隐藏索引)
+    - [设置持久化](#设置持久化)
+    - [UTF-8编码](#utf-8编码)
+    - [通用表达式(Common Table Expressions)](#通用表达式common-table-expressions)
+    - [窗口函数](#窗口函数)
+- [小点](#小点)
+    - [drop truncate delete区别](#drop-truncate-delete区别)
+- [错误解决办法](#错误解决办法)
+    - [根据日志数据找回](#根据日志数据找回)
+    - [blocked because of many connection errors](#blocked-because-of-many-connection-errors)
 - [other](#other)
-    - [mysql事务日志(redo log和undo log)](#事务日志)
-        - [redoLog](#redo-log)
+    - [事务日志](#事务日志)
+        - [redo log](#redo-log)
         - [undo log](#undo-log)
- 
+        - [binlog和事务日志的先后顺序及group commit](#binlog和事务日志的先后顺序及group-commit)
 
+<!-- /TOC -->
 
 
 
 [refer(整体)](https://juejin.cn/post/6883270227078070286#heading-65)
 [官方文档](https://www.mysqlzh.com/doc/215/418.html)
+
+list：
+- [ ] [知乎mysql底层原理及性能优化](https://zhuanlan.zhihu.com/p/161233931)
+- [ ] [知乎mysql底层原理及性能优化2](https://zhuanlan.zhihu.com/p/157698912)
+
 
 ### base
 
@@ -212,10 +240,79 @@ alter table table_name ENGINE=InnoDB
 > 清理磁盘碎片会导致锁表，谨慎使用
 ### 存储引擎
 
+#### InnoDB
+
+##### 四大特性
+[refer](https://www.cnblogs.com/zhs0/p/10528520.html)
+- 插入缓冲(insert buffer)
+    - 插入缓冲（Insert Buffer/Change Buffer）：提升插入性能，change buffering是insert buffer的加强，insert buffer只针对insert有效，change buffering对insert、delete、update(delete+insert)、purge都有效
+    - 只对于非聚集索引（非唯一）的插入和更新有效，对于每一次的插入不是写到索引页中，而是先判断插入的非聚集索引页是否在缓冲池中，如果在则直接插入；若不在，则先放到Insert Buffer 中，再按照一定的频率进行合并操作，再写回disk。这样通常能将多个插入合并到一个操作中，目的还是为了减少随机IO带来性能损耗。
+    - 使用插入缓冲的条件：
+        - 非聚集索引。聚集索引一般是自增的，写入的位置是顺序的；非聚集索引等于随机写，效率较低
+        - 非唯一索引。在插入缓冲时，数据库并不会去查找索引页来判断插入的记录是否唯一，如果去查找肯定又会发生离散读取的情况，那就导致插入缓冲失去了意义，因此唯一索引列不能使用插入缓冲
+    
+    - 将insert buffer进行合并到真正的索引页的情况发生在如下：
+        - 非唯一聚集索引页被读取到缓冲池时：执行select查询时，会检查非唯一聚集索引是否有记录存放在Insert Buffer中，如果有，则对该页的所有记录合并插入到实际索引列中
+        - 非唯一聚集索引页无可用空间时：检测到页的空间小于1/32时，会强制进行一次合并插入操作。
+        - Master Thread执行：在后台主线程中，每秒或每10秒就会进行一次合并插入缓冲的操作
+- 二次写(double write)：double write带给InnoDB存储引擎的是数据页的可靠性。
+    - double write由两部分组成，一部分是内存中的doublewrite buffer，另一部分是物理磁盘上共享表空间中连续128个页，即2个区。两者大小都为2MB。
+    - 在对缓存池的脏页进行刷新的时候，并不是直接写入到磁盘，而是先将脏页复制到内存中的doublewrite buffer中，之后通过doublewrite buffer分两次，
+      每次1MB顺序的写入共享表空间的物理磁盘上，(因为这个过程是顺序写的，开销并不是很大)；再将doublewrite buffer 中的页写入各个 表空间文件中，此时的写入则是离散的。
+- 自适应哈希索引(ahi Adaptive Hash index)
+    - 当某个非聚集索引被等值查询的次数很多时，就会为这个非聚集索引再构造一个hash索引，这个hash索引会放在缓存中
+- 预读(read ahead)：线性预读放到以extent为单位，而随机预读放到以extent中的page为单位。线性预读着眼于将下一个extent提前读取到buffer pool中，而随机预读着眼于将当前extent中的剩余的page提前读取到buffer pool中
+    - 线性预读：如果一个extent中的被顺序读取的page超过或者等于`配置参数innodb_read_ahead_threshold`时，Innodb将会异步的将下一个extent读取到buffer pool中
+    - 随机预读：当同一个extent中的一些page在buffer pool中发现时，Innodb会将该extent中的剩余page一并读到buffer pool中，由于随机预读方式给Innodb code带来了一些不必要的复杂性，同时在性能也存在不稳定性，在5.5中已经将这种预读方式废弃
+
+#### MyISAM与InnoDB的区别
+[refer](https://blog.csdn.net/qq_35642036/article/details/82820178)
+- 事务：InnoDB支持事务，MyISAM不支持
+- 外键：InnoDB支持外键，而MyISAM不支持。对一个包含外键的InnoDB表转为MYISAM会失败
+- 是否聚集索引：
+    - InnoDB是聚集索引，使用B+Tree作为索引结构，数据文件是和（主键）索引绑在一起的（表数据文件本身就是按B+Tree组织的一个索引结构），必须要有主键，通过主键索引效率很高。但是辅助索引需要两次查询，先查询到主键，然后再通过主键查询到数据。因此，主键不应该过大，因为主键太大，其他索引也都会很大
+    - MyISAM是非聚集索引，也是使用B+Tree作为索引结构，索引和数据文件是分离的，索引保存的是数据文件的指针。主键索引和辅助索引是独立的
+    - 即：InnoDB的B+树主键索引的叶子节点就是数据文件，辅助索引的叶子节点是主键的值；而MyISAM的B+树主键索引和辅助索引的叶子节点都是数据文件的地址指针
+- 行锁：InnoDB支持表、行(默认)级锁，而MyISAM支持表级锁
+    - InnoDB的行锁是实现在索引上的，而不是锁在物理行记录上。潜台词是，如果访问没有命中索引，也无法使用行锁，将要退化为表锁
+- 唯一索引：InnoDB表必须有唯一索引（如主键）（用户没有指定的话会自己找/生产一个隐藏列Row_id来充当默认主键），而Myisam可以没有
+- InnoDB不保存表的具体行数，执行`select count(*) from table`时需要全表扫描。而MyISAM用一个变量保存了整个表的行数，查看行数时只需要读出变量即可
+    - InnoDB没有这个变量主要因为事务特性，在同一时刻表中的行数对于不同的事务而言是不一样的，因此count统计会计算对于当前事务而言可以统计到的行数，而不是将总行数储存起来方便快速查询。InnoDB会尝试遍历一个尽可能小的索引除非优化器提示使用别的索引。如果二级索引不存在，InnoDB还会尝试去遍历其他聚簇索引
+    - 如果得到大致的行数值够满足需求可以用`SHOW TABLE STATUS`
+- Innodb存储文件有frm、ibd，而Myisam是frm、MYD、MYI
+    - Innodb：frm是表定义文件，ibd是数据文件
+    - Myisam：frm是表定义文件，myd是数据文件，myi是索引文件
+    
+    
+
 ### 查询
 
 ### 索引
 
+
+#### 全文索引
+
+[refer](https://blog.csdn.net/mrzhouxiaofei/article/details/79940958)
+
+fulltext，通过关键字的匹配来进行查询过滤，需要基于相似度的查询，而不是精确数值比较，这时需要全文索引。比 like %%快n倍
+
+支持情况：
+- MySQL 5.6 以前的版本，只有 MyISAM 存储引擎支持；MySQL 5.6 及以后的版本，MyISAM 和 InnoDB 存储引擎均支持。
+- 只有字段的数据类型为 char、varchar、text 及其系列才可以建全文索引
+
+创建索引：`alter table fulltext_test add fulltext index content_tag_fulltext(content,tag);`
+使用：全文索引使用match和against关键字
+    - `select * from fulltext_test where match(content,tag) against('xxx xxx')`
+    - match() 函数中指定的列必须和全文索引中指定的列完全相同，否则就会报错，无法使用全文索引，这是因为全文索引不会记录关键字来自哪一列。如果想要对某一列使用全文索引，请单独为该列创建全文索引
+
+两种全文索引：
+- 自热语言的全文索引。默认情况或者`in natural language mode 修饰符`,match() 函数对文本集合执行自然语言搜索
+- 布尔全文索引。在查询中自定义某个被搜索的词语的相关性。eg：`select * test where match(content) against('a*' in boolean mode);` 会查询到a/aa/aaa
+    - `+`必须包含该词
+    - `-`必须不包含该词
+    - `>`提高该词的相关性，查询的结果靠前
+    - `<`降低该词的相关性，查询的结果靠后
+    - `*`通配符，只能接在词后面
 
 ### 事务
 

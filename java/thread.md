@@ -355,6 +355,13 @@ private boolean cleanSomeSlots(int i, int n) {
 
 #### 线程池
 
+[refer](https://blog.csdn.net/breakout_alex/article/details/105454980)
+
+线程池的优点：
+- 重用存在并空闲的线程，减少对象创建、消亡的开销，性能佳。
+- 可有效控制最大并发线程数，提高系统资源的使用率，同时避免过多资源竞争，避免堵塞。
+- 提供定时执行、定期执行、单线程、并发数控制等功能。
+
 java线程池的常见参数：
 - corePoolSize：核心线程数量，会一直存在，除非allowCoreThreadTimeOut设置为true
 - maximumPoolSize：线程池允许的最大线程池数量
@@ -373,16 +380,95 @@ java线程池的常见参数：
 - DiscardOldestPolicy（丢弃队列里最老的任务，将当前这个任务继续提交给线程池）
 - CallerRunsPolicy（交给线程池调用所在的线程进行处理)
 
-##### 问题
-- 为什么要使用 Executor 线程池框架
-    - 每次执行任务创建线程 new Thread()比较消耗性能，创建一个线程是比较耗时、耗资源的。
-    - 调用 new Thread()创建的线程缺乏管理，被称为野线程，而且可以无限制的创建，线程之间的相互竞争会导致过多占用系统资源而导致系统瘫痪，还有线程之间的频繁交替也会消耗很多系统资源。
-    - 直接使用 new Thread() 启动的线程不利于扩展，比如定时执行、定期执行、定时定期执行、线程中断等都不便实现。
-- 使用 Executor 线程池框架的优点
-    - 能复用已存在并空闲的线程从而减少线程对象的创建从而减少了消亡线程的开销。
-    - 可有效控制最大并发线程数，提高系统资源使用率，同时避免过多资源竞争。
-    - 框架中已经有定时、定期、单线程、并发数控制等功能。
+线程池异常处理
+- 在任务代码中try/catch捕获异常
+- submit执行，通过Future对象的get方法接收抛出的异常
+- 实例化时，传入自己的ThreadFactory，为线程设置UncaughtExceptionHandler，在uncaughtException方法中处理异常
+- 重写ThreadPoolExecutor的afterExecute方法，处理传递的异常引用 
 
+<details>
+  <summary>线程池异常处理示例</summary>
+  <pre><code> 
+  
+     public static void testFuture() {
+         ExecutorService threadPool = Executors.newFixedThreadPool(10);
+         for (int i=0; i<10; i++) {
+             Future future = threadPool.submit(() -> {
+                 List<String> lists = new ArrayList<String>();
+                 System.out.println(lists.get(1));
+             });
+             try {
+                 future.get();
+             } catch (Exception e) {
+                 e.printStackTrace();
+             }
+         }
+     }
+         
+         
+     // 为线程设置setUncaughtExceptionHandler    
+     public static void testExceptionHandler(){
+         ExecutorService threadPool = Executors.newSingleThreadExecutor(r->{
+             Thread t = new Thread(r);
+             t.setUncaughtExceptionHandler((t1,e) -> {
+                 System.out.println(t1.getName() +e);
+             });
+             return t;
+         });
+         threadPool.execute(()->{
+             List<String> lists = new ArrayList<String>();
+             System.out.println(lists.get(1));
+         });
+     }
+     
+     
+     // 重写afterExecute方法
+     class ExtendedExecutor extends ThreadPoolExecutor {
+         // 这可是jdk文档里面给的例子。。
+         protected void afterExecute(Runnable r, Throwable t) {
+             super.afterExecute(r, t);
+             if (t == null && r instanceof Future<?>) {
+                 try {
+                     Object result = ((Future<?>) r).get();
+                 } catch (CancellationException ce) {
+                     t = ce;
+                 } catch (ExecutionException ee) {
+                     t = ee.getCause();
+                 } catch (InterruptedException ie) {
+                     Thread.currentThread().interrupt(); // ignore/reset
+                 }
+             }
+             if (t != null)
+                 System.out.println(t);
+         }
+     }}
+  </code></pre>
+</details>
+
+
+各种阻塞队列的说明(都是线程安全的)：
+- ArrayBlockingQueue：一个由数组结构组成的有界阻塞队列 FIFO。 
+- LinkedBlockingQueue：一个由链表结构组成的阻塞队列 FIFO，容量可以选择设置。不设置的话，将是无边界的阻塞队列，**吞吐量通常高于ArrayBlockingQueue**；newFixedThreadPool使用了这个队列 
+- PriorityBlockingQueue：一个支持优先级排序的无界阻塞队列。 
+- DelayQueue：延迟队列。根据指定的执行时间从小到大排序，否则根据插入到队列的先后排序。newScheduledThreadPool使用 
+- SynchronousQueue：同步队列，一个不存储元素的阻塞队列，每个插入操作必须等到另一个线程调用移除操作，否则插入操作一直处于阻塞状态，吞吐量通常要高于LinkedBlockingQuene，newCachedThreadPool线程池使用了这个队列。 
+- LinkedTransferQueue：一个由链表结构组成的无界阻塞队列
+- LinkedBlockingDeque：一个由链表结构组成的双向阻塞队列
+
+> 使用无界队列会导致内存飙升【建议不要直接通过Executors静态工厂构建线程池，而是通过ThreadPoolExecutor的方式，这样的处理方式让写的同学更加明确线程池的运行规则，规避资源耗尽的风险】
+
+线程池种类：
+- newCachedThreadPool创建一个可缓存线程的线程池，如果线程池长度超过处理需要，可灵活回收空闲线程，若无可回收，则新建线程。
+    - 使用SynchronousQueue，是一个没有容量的阻塞队列。每个插入操作必须等待另一个线程的对应移除操作。这意味着，如果主线程提交任务的速度高于线程池中处理任务的速度时，CachedThreadPool会不断创建新线程。极端情况下，CachedThreadPool会因为创建过多线程而耗尽CPU资源
+- newFixedThreadPool 创建一个定长线程池，可控制线程最大并发数，超出的线程会在队列中等待。
+- newScheduledThreadPool 创建一个周期线程池，支持定时及周期性任务执行。
+- newSingleThreadExecutor 创建一个单线程化的线程池，它只会用唯一的工作线程来执行任务，保证所有任务按照指定顺序(FIFO, LIFO, 优先级)执行。
+
+
+
+
+
+##### 问题
 - Executor和Executors区别
     - Executors工具类的不同方法按照我们的需求创建了不同的线程池，来满足业务的需求。
     - Executor 接口对象能执行我们的线程任务。
