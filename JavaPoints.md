@@ -789,28 +789,31 @@
 
 - ACID
 
-	- 原子性   Atomincity
+  - 原子性   Atomincity
 
-		- 事务被视为最小不可分割单元，一个事务内所有操作要么全都成功要么全都失败
+    - 事务被视为最小不可分割单元，一个事务内所有操作要么全都成功要么全都失败
+    - 通过undo log实现原子性，事务回滚机制
 
-	- 隔离性
+  - 隔离性
 
-		- 一个事务在最终提交前，对其他事务是不可见的
+    - 一个事务在最终提交前，对其他事务是不可见的
+    - 读写锁+mvcc（事务并发的多版本控制）
 
-	- 一致性
+  - 一致性
 
-		- 数据库在事务执行前后都保持一致性，在一致性状态下，所有事务读取到的结果都一直
+  	- 数据库在事务执行前后都保持一致性，在一致性状态下，所有事务读取到的结果都一直
 
-	- 持久性
+  - 持久性
 
-		- 一旦事务提交，其所作的事情将永久保存在数据库中
+  	- 一旦事务提交，其所作的事情将永久保存在数据库中
+  	- 通过redo log持久化到磁盘实现
 
 - ACID之间的关系
 - 隔离级别
 
 	- READ UNCOMMITED-读未提交
 
-		- 最低级别
+		- 最低级别--脏读，
 
 	- READ COMMITED-读已提交
 
@@ -868,14 +871,12 @@
 
 ### log
 
-- undo log
+- **undo log**：回滚日志，用于记录数据修改前的信息，和redo log相反
+  - 事务回滚，mvcc
 
-	- 事务回滚，mvcc
-
-- redo log
-
-	- 记录内存操作记录
-
+- **redo log**：重做日志，用来实现事务的持久性，该日志由两部分组成，redo log buffer和redo log，前者存在内存当中，后置存在磁盘当中
+- 记录内存操作记录，一般用于数据恢复
+	
 - bin log
 
 ### 分库分表
@@ -892,7 +893,6 @@
 	- 单进程单线程，操作基于内存，io多路复用模型，非阻塞io
 
 		- 子主题 1
-
 - 存储数据结构
 
 	- String
@@ -914,13 +914,11 @@
 	- List
 
 		- lrange实现高性能分页
-
 - 部署方式
 
 	- 主从模式
 	- 哨兵模式
 	- 集群模式
-
 - 数据同步机制
 
 	- 主从同步
@@ -930,7 +928,6 @@
 	- 快照同步
 
 		- 通过RDB文件同步
-
 - 持久化方式
 
 	- RDB：不定时将内存写入磁盘存储,fork子进程去做持久化的，比AOF速度要快
@@ -938,7 +935,6 @@
 		- 突然宕机会导致数据不是最新的
 
 	- AOF：将每一个写和删操作都持久化到日志当中
-
 - 内存淘汰机制
 
 	- 定期删除
@@ -956,11 +952,9 @@
 	- LRU
 
 		- 删除最少使用的key
-
 - redis大key问题
 
 	- 使用hash函数来分桶，将数据分散到多个桶中，减少单个key大小
-
 - Redis分布式锁
 
 	- setnx指令（SET IF NOT EXIST）
@@ -972,7 +966,13 @@
 	- 线程a被挂起，超时释放锁，然后b获取锁，写数据，a线程唤醒，写不了数据问题
 
 		- 引入锁续约机制
-
+- redis事务
+  - MULTI, EXEC, DISCARD,WATCH
+    - multi：标记事务开始，多条命令按照顺序执行
+    - exec：执行命令
+    - discard：放弃执行事务块内所有命令
+    - watch：用于监视一个或多个key，如果事务执行之前被打断那么中断事务
+  - redis事务不可回滚
 - 缓存
 
 	- 缓存穿透：使用一个数据库中不存在数据的key发送大量请求
@@ -991,7 +991,6 @@
 	- 缓存雪崩：大量缓存同时失效
 
 		- 解决方案：将所有的key分时段失效
-
 - redis和memcache区别
 
 	- memcache
@@ -1167,6 +1166,7 @@
 ### ElasticSerach
 
 - 定义：一个实时的分布式分析，搜索，存储引擎
+
 - 为什么要使用elasticsearch？
 
 	- name like%A%模糊查询是不走索引的，数据库数据量大了之后效率非常低
@@ -1193,8 +1193,642 @@
 	- 主分片可以写入，读取，副分片可以读取
 	- 一个index，多个分片提高吞吐率
 	- 副片主要为了实现高可用
+	
+- 代码示例：
 
-## 分布式
+  - 1.jar包
+
+    ```java
+    <dependency>
+    			<groupId>org.elasticsearch.client</groupId>
+    			<artifactId>transport</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch</groupId>
+    			<artifactId>elasticsearch</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch</groupId>
+    			<artifactId>elasticsearch-core</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch</groupId>
+    			<artifactId>elasticsearch-secure-sm</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch</groupId>
+    			<artifactId>elasticsearch-x-content</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch</groupId>
+    			<artifactId>elasticsearch-cli</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch</groupId>
+    			<artifactId>jna</artifactId>
+    			<version>4.5.1</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch.plugin</groupId>
+    			<artifactId>transport-netty4-client</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch.plugin</groupId>
+    			<artifactId>reindex-client</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch.client</groupId>
+    			<artifactId>elasticsearch-rest-client</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch.plugin</groupId>
+    			<artifactId>lang-mustache-client</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch.plugin</groupId>
+    			<artifactId>percolator-client</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch.plugin</groupId>
+    			<artifactId>parent-join-client</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>org.elasticsearch.plugin</groupId>
+    			<artifactId>rank-eval-client</artifactId>
+    			<version>6.5.4</version>
+    		</dependency>
+    		<dependency>
+    			<groupId>com.google.code.gson</groupId>
+    			<artifactId>gson</artifactId>
+    			<version>2.8.0</version>
+    		</dependency>
+    ```
+
+  - 2.EsUtil创建连接
+
+    ```kotlin
+    import org.elasticsearch.client.transport.TransportClient;
+    import org.elasticsearch.common.settings.Settings;
+    import org.elasticsearch.common.transport.TransportAddress;
+    import org.elasticsearch.transport.client.PreBuiltTransportClient;
+     
+    import java.net.InetAddress;
+    import java.net.UnknownHostException;
+     
+     
+    public class ESUtil {
+     
+    	private static volatile TransportClient client;
+     
+    	/**
+    	 *采用双端检索机制实现客户端为单例模式
+    	 * @param clusterName    你的Elasticsearch集群名称
+             * @param hostName       你的Elasticsearch的主机Ip地址
+             * @param hostPort       你的Elasticsearch与客户端通信的端口，一般为9300
+    	 * @return TransportClient 
+    	 * @throws UnknownHostException
+    	 */
+    	@SuppressWarnings("resource")
+    	public static TransportClient getClient(String clusterName, String hostName, int hostPort) {
+    		if (client == null) {
+    			synchronized (TransportClient.class) {
+    				try {
+    					client = new PreBuiltTransportClient(Settings.builder().put("cluster.name", clusterName).build())
+    							.addTransportAddress(new TransportAddress(InetAddress.getByName(hostName), hostPort));
+    				} catch (UnknownHostException e) {
+    					e.printStackTrace();
+    				}
+    			}
+    		}
+    		return client;
+    	}
+    }
+    ```
+
+  - 3.初始化es中索引模板
+
+    ```kotlin
+    /**
+         * 判断索引是否存在
+         * @param client
+         * @param indexName
+         * @return
+         */
+        public boolean existIndex(TransportClient client,String indexName){
+            boolean existIndex = false;
+            try {
+                existIndex = client.admin().indices().exists(new IndicesExistsRequest().indices(new String[]{indexName}))
+                        .actionGet().isExists();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return existIndex;
+        }
+    /**
+         * 创建并初始化索引
+         *@param clazz    需要创建索引的实体类
+         * @param indexName    需要创建的索引名称
+         */
+        @SuppressWarnings("rawtypes")
+    	public void initIndex(TransportClient client, String indexName, Class clazz){
+            try {
+                if(existIndex(client,indexName)){
+                    return; //如果该索引存在，则不创建
+                }
+                CreateIndexRequestBuilder cirBuilder = client.admin().indices().prepareCreate(indexName);
+                XContentBuilder mapping = XmlContentUtil.getXContentBuilderMapping(clazz);
+                cirBuilder.addMapping("doc",mapping);
+                cirBuilder.execute().actionGet();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    ```
+
+  - 模板与相关实体类转换
+
+    ```java
+    
+    import java.io.IOException;
+    import java.util.HashMap;
+    import java.util.Map;
+     
+    import org.elasticsearch.common.xcontent.XContentBuilder;
+    import org.elasticsearch.common.xcontent.XContentFactory;
+     
+    import com.ips.esb.model.EsbMonitor;
+     
+    public class XmlContentUtil {
+    	
+    	/**
+    	 * Log转化为ES标准数据
+    	 * @param object    要转化的实体类Monitor
+    	 * @return
+    	 */
+    	public static XContentBuilder getXContentBuilder(Object object){
+    		if(object.getClass().getName().contains("Monitor")){
+    			return getEsbMonitorXContentBuilder((Monitor)object);
+    		}
+    		return null;
+    	}
+    	/**
+    	 * Monitor转化为ES标准数据
+    	 * @param monitor
+    	 * @return
+    	 */
+    	public static XContentBuilder getEsbMonitorXContentBuilder(Monitor monitor) {
+    		XContentBuilder xContentBuilder = null;
+    		try {
+    			xContentBuilder = XContentFactory.jsonBuilder().startObject()// 标识开始设置值
+    					.field("uuid", monitor.getUuid())
+    					.field("sys_id", monitor.getSysId())
+    					.field("call_sys_id", monitor.getCallSysId())
+    					.field("server_ip", monitor.getServerIp())
+    					.field("remote_ip", monitor.getRemoteIp())
+    					.field("pub_item_name", monitor.getPubItemName())
+    					.field("parent_pub_item_name", monitor.getParentPubItemName())
+    					.field("session_id", monitor.getSessionId())
+    					.field("order_num", monitor.getOrderNum())
+    					.field("monitor_id", monitor.getMonitorId())
+    					.field("start_time", monitor.getStartTime())
+    					.field("duration", monitor.getDuration())
+    					.field("status", monitor.getStatus())
+    					.field("result_code", monitor.getResultCode())
+    					.field("result_desc", monitor.getResultDesc())
+    					.field("data_size_in", monitor.getDataSizeIn())
+    					.field("data_size_out", monitor.getDataSizeOut())
+    					.field("gateway_code", monitor.getGatewayCode())
+    					.field("token_id", monitor.getTokenId())
+    					.field("client_id", monitor.getClientId())
+    					.field("server_id", monitor.getServerId())
+    			 .endObject();
+    		} catch (Exception e) {
+    			e.printStackTrace();
+    		}
+    		return xContentBuilder;
+    	}
+    	
+    	/**
+    	 * 生成ES标准数据
+    	 * @param object
+    	 * @return
+    	 * @throws IOException 
+    	 */
+    	@SuppressWarnings("rawtypes")
+    	public static XContentBuilder getXContentBuilderMapping(Class clazz) throws IOException{
+    		if(clazz.getName().contains("Monitor")){
+    			return XmlContentUtil.getEsbMonitorXContentBuilderMapping();
+            }
+    		return null;
+    	}
+    	
+    	/**
+    	 * 生成Monitor的ES标准数据模板
+    	 * @return
+    	 * @throws IOException 
+    	 */
+    	public static XContentBuilder getEsbMonitorXContentBuilderMapping() throws IOException {
+    		Map<String, Object> keyword = new HashMap<String, Object>();
+    		keyword.put("type", "keyword");
+    		keyword.put("ignore_above", 256);
+    		XContentBuilder mapping = XContentFactory.jsonBuilder()
+    	        .startObject()//标识开始设置值
+    	        .startObject("properties")
+    	        .startObject("@timestamp").field("type","date").endObject()
+    	        .startObject("@version").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("uuid").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("sys_id").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("call_sys_id").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("server_ip").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("remote_ip").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("pub_item_name").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("parent_pub_item_name").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("session_id").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("order_num").field("type","integer").endObject()
+    	        .startObject("monitor_id").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("start_time").field("type","date").endObject()
+    	        .startObject("duration").field("type","long").endObject()
+    	        .startObject("status").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("result_code").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("result_desc").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("data_size_in").field("type","long").endObject()
+    	        .startObject("data_size_out").field("type","long").endObject()
+    	        .startObject("gateway_code").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("token_id").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("client_id").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .startObject("server_id").field("type","text").startObject("fields").field("keyword",keyword).endObject().endObject()
+    	        .endObject().endObject();
+    		return mapping;
+    	}
+    }
+    ```
+
+    ```kotlin
+    import java.io.Serializable;
+    import java.text.DateFormat;
+    import java.text.SimpleDateFormat;
+    import java.util.Date;
+     
+    public class EsbMonitor implements Serializable {
+    	private String uuid;
+    	private String sysId;
+    	private String callSysId;
+    	private String serverIp;
+    	private String remoteIp;
+    	private String pubItemName;
+    	private String parentPubItemName;
+    	private String sessionId;
+    	private Integer orderNum;
+    	private String monitorId;
+    	private Date startTime;
+    	private Long duration;
+    	private String status;
+    	private String resultCode;
+    	private String resultDesc;
+    	private Long dataSizeIn;
+    	private Long dataSizeOut;
+    	private String gatewayCode;
+    	private String tokenId;
+    	private String clientId;
+    	private String serverId;
+    }
+    ```
+
+  - 写入，写出数据操作
+
+    - 写
+
+    ```kotlin
+    /**
+         * 向指定索引中批量插入数据
+         * @param <T>
+         * @param indexName 索引名称
+         * @param logList Log 的List集合
+         * @return
+         */
+        @SuppressWarnings("rawtypes")
+    	public <T> void addLogListIntoES(String indexName,List<T> logList, Class clazz){
+            TransportClient client = this.getClient();
+            try {
+                BulkRequestBuilder brBulider = client.prepareBulk();
+                initIndex(client,indexName,clazz); //初始化索引
+                IndexRequest request = null;
+                for (Object log : logList) {
+                    request = client.prepareIndex(indexName,"doc")
+                            .setSource(XmlContentUtil.getXContentBuilder(log)).request();
+                    brBulider.add(request);
+                }
+                BulkResponse bulkResponse = brBulider.execute().actionGet();
+                if(bulkResponse.hasFailures()){
+                    throw new RuntimeException("日志写入失败");
+                }
+            }catch(Exception e){
+            	e.printStackTrace();
+            }
+        }
+    ```
+
+    * 读
+
+    ```kotlin
+    
+    import java.io.IOException;
+    import java.util.ArrayList;
+    import java.util.Date;
+    import java.util.List;
+    import java.util.Map;
+    import java.util.Set;
+    import java.util.concurrent.CopyOnWriteArrayList;
+     
+    import org.elasticsearch.action.ActionFuture;
+    import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
+    import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
+    import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
+    import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
+    import org.elasticsearch.action.bulk.BulkRequestBuilder;
+    import org.elasticsearch.action.bulk.BulkResponse;
+    import org.elasticsearch.action.index.IndexRequest;
+    import org.elasticsearch.action.search.SearchRequestBuilder;
+    import org.elasticsearch.action.search.SearchResponse;
+    import org.elasticsearch.action.search.SearchType;
+    import org.elasticsearch.client.transport.TransportClient;
+    import org.elasticsearch.common.unit.TimeValue;
+    import org.elasticsearch.common.xcontent.XContentBuilder;
+    import org.elasticsearch.index.query.*;
+    import org.elasticsearch.search.SearchHit;
+    import org.elasticsearch.search.SearchHits;
+    import org.elasticsearch.search.aggregations.Aggregation;
+    import org.elasticsearch.search.aggregations.AggregationBuilders;
+    import org.elasticsearch.search.aggregations.Aggregations;
+    import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
+     
+    import com.google.gson.Gson;
+     
+    /**
+     * @author allen
+     * @date 2019/11/28-15:01
+     */
+    public class SearchUtil {
+        private List<TermsAggregationBuilder> aggregationBuilders = null;
+        private BoolQueryBuilder boolQueryBuilder  = QueryBuilders.boolQuery();
+        public SearchUtil(){
+            aggregationBuilders = new ArrayList<TermsAggregationBuilder>();
+        }
+        /**
+         * 添加查询参数(查询类型为And)
+         * @param key
+         * @param value
+         */
+        public void setParamAnd(String key, String value){
+            boolQueryBuilder.filter(QueryBuilders.termQuery(key, value));
+        }
+        /**
+         * 添加模糊查询参数(查询类型为And)
+         * @param key
+         * @param value
+         */
+        public void setParamLike(String key, String value){
+            boolQueryBuilder.filter(QueryBuilders.wildcardQuery(key, "*"+value+"*"));
+        }
+        /**
+        *
+        *添加模糊查询参数(查询类型为And)(无分词查询)
+        */
+         public void setParamAndNotPhrase(String key, String value) {
+            this.boolQueryBuilder.filter(QueryBuilders.termQuery(key + ".keyword", value));
+        }
+        /**
+         * 添加查询参数(查询类型为Or)
+         * @param key
+         * @param value
+         */
+        public void setParamOr(String key, String value){
+            boolQueryBuilder.should(QueryBuilders.termQuery(key,value));
+        }
+     
+        /**
+         * Date类型查询参数及范围设置
+         * @param key
+         * @param begin
+         * @param end
+         */
+        public void setDateRange(String key, Date begin, Date end){
+            String beginStr = DateUtil.getSub8DateStr(begin);
+            String endStr = DateUtil.getSub8DateStr(end);
+            setRange(key, beginStr, endStr);
+        }
+     
+        /**
+         *  Date类型查询参数及范围设置
+         * @param key
+         * @param begin
+         * @param end
+         */
+        public void setRange(String key, String begin, String end){
+            boolQueryBuilder.must(QueryBuilders.rangeQuery(key).from(begin).to(end));
+        }
+         /**
+         * 添加聚合查询条件
+         * @param key
+         */
+        public void setAggregationParam(String key){
+        	aggregationBuilders.add(AggregationBuilders.terms(key).field(key + ".keyword"));
+        }
+        /**
+         * 获取ES集群下的所有索引名称
+         *
+         * @return
+         */
+        public Set<String> getAllIndex() {
+            TransportClient client = getClient();
+            Set<String> indexSet = null;
+            try {
+                ActionFuture<IndicesStatsResponse> isr = client.admin().indices().stats(new IndicesStatsRequest().all());
+                indexSet = isr.actionGet().getIndices().keySet();
+            }catch(Exception e){
+            	e.printStackTrace();
+            }
+            return indexSet;
+        }
+     
+        /**
+         * 获取指定索引下的数据量
+         *
+         * @param indexName
+         * @return
+         */
+        public long getCountByIndex(String indexName) {
+            TransportClient client = getClient();
+            long totalHites = 0l;
+            try {
+                SearchRequestBuilder searchRequestBuilder = client.prepareSearch(indexName).setTypes("doc");
+                searchRequestBuilder.setQuery(boolQueryBuilder);
+                totalHites = searchRequestBuilder.get().getHits().getTotalHits();
+            }catch(Exception e){
+            	e.printStackTrace();
+            }
+            return totalHites;
+        }
+        
+        /**
+         * 聚合检索
+         *
+         * @param indexName
+         * @return
+         */
+        public Map<String, Aggregation> getResultByAggreation(String indexName) {
+            TransportClient client = getClient();
+            try {
+                SearchRequestBuilder searchRequestBuilder = client.prepareSearch(indexName).setTypes("doc");
+                //添加查询条件
+                searchRequestBuilder.setQuery(boolQueryBuilder);
+                for (TermsAggregationBuilder termsAggregationBuilder : aggregationBuilders) {
+                	searchRequestBuilder.addAggregation(termsAggregationBuilder);
+    			}
+                SearchResponse actionGet = searchRequestBuilder.execute().actionGet();
+                Aggregations aggregations = actionGet.getAggregations();
+                Map<String, Aggregation> asMap = aggregations.getAsMap();
+                return asMap;
+            }catch(Exception e){
+            	e.printStackTrace();
+            	return null;
+            }
+        }
+        /**
+         * 根据日志uuid查询单条记录
+         * @param indexName
+         * @return
+         */
+        public Object getByUuid(String indexName, Class clazz) {
+            TransportClient client = new SearchUtil().getClient();
+            Object logObj = null;
+            try {
+                if(!existIndex(client,indexName)){
+                    return null;
+                }
+                SearchRequestBuilder searchRequestBuilder = client.prepareSearch(indexName)
+                        .setSearchType(SearchType.DEFAULT)
+                        .setSize(10)
+                        .setScroll(new TimeValue(1000));
+                //添加查询条件
+                searchRequestBuilder.setQuery(boolQueryBuilder);
+                SearchResponse searchResponse = searchRequestBuilder.execute().actionGet();
+                SearchHits hitsFirst = searchResponse.getHits();
+                Gson gson = new Gson();
+                for (SearchHit hit : hitsFirst) {
+                    logObj = gson.fromJson(hit.getSourceAsString(), clazz);
+                    break;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return logObj;
+        }
+        /**
+         * 分页查询
+         * @param indexName
+         * @return
+         */
+        @SuppressWarnings({ "rawtypes", "unchecked" })
+    	public Page pageByIndex(String indexName, Class clazz, Page page) {
+            List<Object> logList = new CopyOnWriteArrayList<Object>();
+            TransportClient client = new SearchUtil().getClient();
+            try {
+                if(!existIndex(client,indexName)){
+                   return page;
+                }
+                			int pageSize = page.getPageSize();
+    			int pageNo = page.getCurrentPage();
+    			SearchRequestBuilder searchRequestBuilder = client.prepareSearch(new String[]{indexName}).setSearchType(SearchType.DEFAULT).setFrom((pageNo - 1) * pageSize).setSize(pageSize);
+    			searchRequestBuilder.setQuery(this.boolQueryBuilder);
+    			SearchResponse searchResponse = (SearchResponse)searchRequestBuilder.execute().actionGet();
+    			SearchHits hitsFirst = searchResponse.getHits();
+    			Gson gson = new Gson();
+    			BaseLogObj logObj = null;
+    			Iterator var13 = hitsFirst.iterator();
+     
+    			while(var13.hasNext()) {
+    				SearchHit hit = (SearchHit)var13.next();
+    				logObj = (BaseLogObj)gson.fromJson(hit.getSourceAsString(), clazz);
+    				logList.add(logObj.convertToLog());
+    			}
+     
+    			long maxNum = this.getCountByIndex(indexName);
+    			int maxPage = (int)maxNum / pageSize;
+    			int totalPages = 0;
+    			if (maxNum % (long)pageSize == 0L) {
+    				totalPages = maxPage;
+    			} else {
+    				++maxPage;
+    				totalPages = maxPage;
+    			}
+     
+    			page.setTotalPages(totalPages);
+    			page.setTotalRows((int)maxNum);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            page.setResults(logList);
+            return page;
+        }
+        /**
+         * 查询 List集合
+         * @param indexName
+         * @return
+         */
+    	public List<Object> listByIndex(String indexName, Class clazz) {
+            List<Object> logList = new CopyOnWriteArrayList<Object>();
+            TransportClient client = new SearchUtil().getClient();
+            try {
+                if(!existIndex(client,indexName)){
+                   return logList;
+                }
+                SearchRequestBuilder searchRequestBuilder = client.prepareSearch(indexName)
+                        .setSearchType(SearchType.DEFAULT)
+                        .setSize(10)
+                        .setScroll(new TimeValue(1000));
+                //添加查询条件
+                searchRequestBuilder.setQuery(boolQueryBuilder);
+                SearchResponse searchResponse = searchRequestBuilder.execute().actionGet();
+                SearchHits hitsFirst = searchResponse.getHits();
+                Gson gson = new Gson();
+                BaseLogObj logObj = null;
+                for (SearchHit hit : hitsFirst) {
+                    logObj = (BaseLogObj)gson.fromJson(hit.getSourceAsString(), clazz);
+                    logList.add(logObj.convertToLog());
+                }
+                //获取总数量
+                long maxNum = searchResponse.getHits().getTotalHits();
+                int maxPage = (int) maxNum / 10;//计算总页数
+                for (int i = 1; i <= maxPage; i++) {
+                    //再次发送请求，并使用上次搜索结果的scrollId
+                    searchResponse = client.prepareSearchScroll(searchResponse.getScrollId())
+                            .setScroll(new TimeValue(1000)).execute().actionGet();
+                        SearchHits searchHits = searchResponse.getHits();
+                    for (SearchHit hit : searchHits) {
+                        logObj = (BaseLogObj)gson.fromJson(hit.getSourceAsString(), clazz);
+                        logList.add(logObj.convertToLog());
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return logList;
+        }
+    }
+    ```
 
 ### 分布式事务
 
@@ -1558,6 +2192,7 @@
 
 - 获取能实现结果的最优解
 
+  ```kotlin
   package greedy;
   
   import java.util.ArrayList;
@@ -1565,76 +2200,77 @@
   import java.util.HashSet;
   
   /**
-   * @program: text
-   * @description: 贪婪算法
-   * @author: min
-   * @create: 2019-10-17 19:50
-   **/
-  public class GreedyAlgorithm {
-    public static void main(String[] args) {
-      //创建广播电台,放入到 Map
-      HashMap<String, HashSet<String>> broadcasts = new HashMap<String, HashSet<String>>(); //将各个电台放入到 broadcasts
-      HashSet<String> hashSet1 = new HashSet<String>();
-      hashSet1.add("北京");
-      hashSet1.add("上海");
-      hashSet1.add("天津");
-      HashSet<String> hashSet2 = new HashSet<String>();
-      hashSet2.add("广州");
-      hashSet2.add("北京");
-      hashSet2.add("深圳");
-      HashSet<String> hashSet3 = new HashSet<String>();
-      hashSet3.add("成都");
-      hashSet3.add("上海");
-      hashSet3.add("杭州");
-      HashSet<String> hashSet4 = new HashSet<String>();
-      hashSet4.add("上海");
-      hashSet4.add("天津");
-      HashSet<String> hashSet5 = new HashSet<String>();
-      hashSet5.add("杭州");
-      hashSet5.add("大连");
-      //加入到 map
-      broadcasts.put("K1", hashSet1);
-      broadcasts.put("K2", hashSet2);
-      broadcasts.put("K3", hashSet3);
-      broadcasts.put("K4", hashSet4);
-      broadcasts.put("K5", hashSet5);
-      //allAreas 存放所有的地区
-      HashSet<String> allAreas = new HashSet<String>();
-      allAreas.add("北京");
-      allAreas.add("上海");
-      allAreas.add("天津");
-      allAreas.add("广州");
-      allAreas.add("深圳");
-      allAreas.add("成都");
-      allAreas.add("杭州");
-      allAreas.add("大连");
-      //创建 ArrayList, 存放选择的电台集合
-      ArrayList<String> selects = new ArrayList<String>();
-      //定义一个临时的集合， 在遍历的过程中，存放遍历过程中的电台覆盖的地区和当前还没有覆盖的地区的交集
-      HashSet<String> tempSet = new HashSet<String>();
-      //定义给 maxKey ， 保存在一次遍历过程中，能够覆盖最大未覆盖的地区对应的电台的 key
-      //如果 maxKey 不为 null , 则会加入到 selects
-      String maxKey = null;
-      while (allAreas.size() != 0) { // 如果 allAreas 不为 0, 则表示还没有覆盖到所有的地区
-        //每进行一次 while,需要
-        maxKey = null;
-        //遍历 broadcasts, 取出对应 key
-        for (String key : broadcasts.keySet()) {
-          //每进行一次 for
-          tempSet.clear();
-          //当前这个 key 能够覆盖的地区
-          HashSet<String> areas = broadcasts.get(key);
-          tempSet.addAll(areas);
-          //求出 tempSet 和 allAreas 集合的交集, 交集会赋给 tempSet
-          tempSet.retainAll(allAreas);
-          //如果当前这个集合包含的未覆盖地区的数量，比 maxKey 指向的集合地区还多
-          //就需要重置 maxKey
-          // tempSet.size() >broadcasts.get(maxKey).size()) 体现出贪心算法的特点,每次都选择最优的
-          if (tempSet.size() > 0 &&
-              (maxKey == null || tempSet.size() > broadcasts.get(maxKey).size())) {
-            maxKey = key;
-          }
-        }
+  
+   * @program: text
+   * @description: 贪婪算法
+   * @author: min
+   * @create: 2019-10-17 19:50
+     **/
+     public class GreedyAlgorithm {
+       public static void main(String[] args) {
+         //创建广播电台,放入到 Map
+         HashMap<String, HashSet<String>> broadcasts = new HashMap<String, HashSet<String>>(); //将各个电台放入到 broadcasts
+         HashSet<String> hashSet1 = new HashSet<String>();
+         hashSet1.add("北京");
+         hashSet1.add("上海");
+         hashSet1.add("天津");
+         HashSet<String> hashSet2 = new HashSet<String>();
+         hashSet2.add("广州");
+         hashSet2.add("北京");
+         hashSet2.add("深圳");
+         HashSet<String> hashSet3 = new HashSet<String>();
+         hashSet3.add("成都");
+         hashSet3.add("上海");
+         hashSet3.add("杭州");
+         HashSet<String> hashSet4 = new HashSet<String>();
+         hashSet4.add("上海");
+         hashSet4.add("天津");
+         HashSet<String> hashSet5 = new HashSet<String>();
+         hashSet5.add("杭州");
+         hashSet5.add("大连");
+         //加入到 map
+         broadcasts.put("K1", hashSet1);
+         broadcasts.put("K2", hashSet2);
+         broadcasts.put("K3", hashSet3);
+         broadcasts.put("K4", hashSet4);
+         broadcasts.put("K5", hashSet5);
+         //allAreas 存放所有的地区
+         HashSet<String> allAreas = new HashSet<String>();
+         allAreas.add("北京");
+         allAreas.add("上海");
+         allAreas.add("天津");
+         allAreas.add("广州");
+         allAreas.add("深圳");
+         allAreas.add("成都");
+         allAreas.add("杭州");
+         allAreas.add("大连");
+         //创建 ArrayList, 存放选择的电台集合
+         ArrayList<String> selects = new ArrayList<String>();
+         //定义一个临时的集合， 在遍历的过程中，存放遍历过程中的电台覆盖的地区和当前还没有覆盖的地区的交集
+         HashSet<String> tempSet = new HashSet<String>();
+         //定义给 maxKey ， 保存在一次遍历过程中，能够覆盖最大未覆盖的地区对应的电台的 key
+         //如果 maxKey 不为 null , 则会加入到 selects
+         String maxKey = null;
+         while (allAreas.size() != 0) { // 如果 allAreas 不为 0, 则表示还没有覆盖到所有的地区
+           //每进行一次 while,需要
+           maxKey = null;
+           //遍历 broadcasts, 取出对应 key
+           for (String key : broadcasts.keySet()) {
+             //每进行一次 for
+             tempSet.clear();
+             //当前这个 key 能够覆盖的地区
+             HashSet<String> areas = broadcasts.get(key);
+             tempSet.addAll(areas);
+             //求出 tempSet 和 allAreas 集合的交集, 交集会赋给 tempSet
+             tempSet.retainAll(allAreas);
+             //如果当前这个集合包含的未覆盖地区的数量，比 maxKey 指向的集合地区还多
+             //就需要重置 maxKey
+             // tempSet.size() >broadcasts.get(maxKey).size()) 体现出贪心算法的特点,每次都选择最优的
+             if (tempSet.size() > 0 &&
+                 (maxKey == null || tempSet.size() > broadcasts.get(maxKey).size())) {
+               maxKey = key;
+             }
+           }
   
         //maxKey != null, 就应该将 maxKey 加入 selects
         if (maxKey != null) {
@@ -1646,6 +2282,7 @@
       System.out.println("得到的选择结果是" + selects);//[K1,K2,K3,K5]
     }
   }
+  ```
 
 ### 快排
 
