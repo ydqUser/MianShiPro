@@ -240,7 +240,6 @@
 			- 1.初次进入同步代码块，通过cas操作Mark word，将对象头中偏向锁标志置为1，当第二次进入同步代码块时，判断这把锁的偏向锁id是不是当前线程，如果是，则直接执行同步代码快内容，没有加锁过程
 			- 2.如果第二次进入同步代码块时存在锁竞争，则升级为轻量级锁，没有获取到锁的线程在外进行自选等待
 			- 3.当自选时间过长还没获取到锁则升级为重量级锁
-
 - Reentrantlock
 
 	- 概念
@@ -260,7 +259,6 @@
 		- AQS（abstractQueueSynchronizer）：一个用于构建锁和同步工具的框架
 
 			- AQS内部维护一个state状态为，通过CAS改变状态值，加锁成功则状态值设置为1，释放锁则设置状态为0
-
 - CAS
 
 	- 概念
@@ -275,14 +273,12 @@
 
 		- CAS自选时间过长，对CPU消耗比较大
 		- 只能保证当前变量的原子操作
-
 - volatile
 
 	- 可见性
 	- 有序性
 
 		- 使用volatile修饰的变量，被所有线程共享，使用内存屏障来防止指令重排，解决了内存可见性问题
-
 - ThreadLocal
 
 	- 概念
@@ -292,7 +288,6 @@
 	- 原理
 
 		- 每个threadLocal维护一个threadLocalMap表，key为threadLocal本身，value才是存储的数据object，key使用的弱引用方式，所以当发生gc的时候回存在key为null的entry，所以需要使用remove方法避免内存泄露问题
-
 - 线程池
 
 	- 关键参数
@@ -323,7 +318,6 @@
 		- newCacheThreadPool
 		- newSIngleTheadExecutor
 		- newScheduledThewadPool
-
 - JMM
 
 	- 多线程操作下的一系列规范约束
@@ -343,7 +337,21 @@
 		- happen-before原则
 
 			- 如果线程a和线程b存在happen-before关系，则a线程对b线程内存可见
-
+- classloader类加载器
+  - 类加载过程
+    - 加载 ：将class文件加载到内存当中
+    - 验证：
+      - 文件格式验证
+      - 元数据验证
+      - 字节码验证
+      - 符号引用验证
+    - 准备：分配内存，并初始化值
+    - 解析：符号引用替换成直接引用
+    - 初始化：对类变量进行初始化
+  - 双亲委派机制
+    - 当一个类加载的过程中，它首先不会去加载，而是委托给自己的父类去加载，父类又委托给自己的父类。因此所有的类加载都会委托给顶层的父类，即Bootstrap Classloader进行加载，然后父类自己无法完成这个加载请求，子加载器才会尝试自己去加载。使用双亲委派模型，Java类随着它的加载器一起具备了一种带有优先级的层次关系，通过这种层次模型，可以避免类的重复加载，也可以避免核心类被不同的类加载器加载到内存中造成冲突和混乱，从而保证了Java核心库的安全
+  - 依赖包冲突问题
+    - pandora(潘多拉)，通过自定义类加载器，为每个中间件自定义一个加载器，这些加载器之间的关系是平行的，彼此没有依赖关系。这样每个中间件的classloader就可以加载各自版本的fastjson。因为一个类的全限定名以及加载该类的加载器两者共同形成了这个类在JVM中的惟一标识，这也是阿里pandora实现依赖隔离的基础
 - juc并发包
 
 	- Atomic原子类
@@ -449,7 +457,6 @@
 		- DI依赖注入
 
 			- 配置文件讲外部资源注入到内部，容器加载了外部资源文件，对象，然后把这些资源注入到程序内部对象中，维护了程序内外对象之间的依赖关系
-
 - AOP：面向切面编程
 
 	- 定义：将那些与业务无关，却被多个模块共同调用的东西，封装起来，减少代码的重复
@@ -466,7 +473,6 @@
 	- Spring Aop和AspectJ AOP有啥区别
 
 		- Spring AOP是运行时增强，AspectJ AOP是编译时增强
-
 - Bean生命周期
 
 	- 实例化bean对象
@@ -477,7 +483,6 @@
 	- 判断配置文件中是否包含init-method属性，有则执行相关方法
 	- 通过BeanPostProcessor类的postProcessAfterInitialization进行Bean的后置通知处理
 	- 判断是否实现Disposable接口，有则执行destroy方法销毁bean
-
 - 容器启动流程
 - 用到的设计模式
 
@@ -504,11 +509,11 @@
 	- 包装器模式
 
 		- 配置多个数据源时使用
-
+- 事务的实现原理
+  - 通过动态代理对数据库事务进行了封装，支持声明式事务和编程式事务
 - 事务隔离级别
 
 	- 比数据库事务隔离级别多一种默认级别
-
 - 事务传播行为
 
 	- 支持当前事务情况
@@ -544,7 +549,6 @@
 		- nested
 
 			- 如果当前存在事务，则创建一个事务作为当前事务的嵌套事务执行，如果不存在事务则为require
-
 - SpringMvc
 
 	- 用户请求进来，交给dispatchServlet处理
@@ -560,17 +564,29 @@
 	- Mybatis配置文件
 	- mapper.xml映射文件
 	- 通过SQLSessionFactory创建SQLSession
-
 - XML映射DAO接口
 
 	- dao接口的方法名会映射Mapper文件中的segment的id值，每个mapper文件中的sql标签都会解析成一个mapperSegment文件
-
 - 分页
 - xml文件中id是否可以重复
 
 	- 原因就是namespace+id是作为Map<String, MapperStatement>的key使用的，如果没有namespace，就剩下id，那么，id重复会导致数据互相覆盖。有了namespace，自然id就可以重复，namespace不同，namespace+id自然也就不同。
-
 - 一二级缓存
+
+### SpringBoot
+
+* 启动流程
+  * @SpringBootApplication
+    * @SpringBootConfiguration
+    * @EnableAutoConfiguration
+      * @Import: 将所有符合自动配置条件的bean定义加载到IoC容器
+      * SpringFactoriesLoader：从指定的配置文件META-INF/spring.factories加载配置。
+    * ComponentScan
+  * SpringBootApplication.run()
+    * 先判断webType ： SERVLET,
+    * 实例化SpringBootContextInitializer
+    * 实例化SpringBootListener
+    * 找到main类运行run方法
 
 ## MySql
 
@@ -811,19 +827,17 @@
 - ACID之间的关系
 - 隔离级别
 
-	- READ UNCOMMITED-读未提交
+	- READ UNCOMMITED-读未提交：一个事务还没提交，他做的变更就能被其他事务看到
 
-		- 最低级别--脏读，
-
-	- READ COMMITED-读已提交
-
-		- 读时加共享锁，有更新操作是会转换为排它锁
-
-	- REPEATABLE READ-可重复读（mysql默认隔离级别）
+		- 最低级别--脏读，不可重复读，幻度
+- READ COMMITED-读已提交：一个事务提交之后，所作的变更才能被其他事务看到
+	- 不可重复读，幻读
+	- 读时加共享锁，有更新操作是会转换为排它锁
+	- REPEATABLE READ-可重复读（mysql默认隔离级别）：一个事务执行过程中看到的数据，总和事务开始时看到的数据一致，未提交的变更对其他事务是不可见的
 
 		- 读时加共享锁，写时加排它锁
-
-	- SERIALIZABLE-串行化
+- 幻读
+	- SERIALIZABLE-串行化： 对于同一条记录，写会加写锁，读会加读锁，当出现读写锁冲突时，后面的事务必须等待前面的事务执行完才能执行。
 
 - 锁
 
@@ -868,16 +882,24 @@
 		- 不可重复读
 		- 幻读
 		- 丢失更新
+		
+	- 最左匹配原则
+	
+	  - 最左前缀匹配原则和联合索引的**索引存储结构和检索方式**是有关系的。
+	
+	    在组合索引树中，最底层的叶子节点按照第一列a列从左到右递增排列，但是b列和c列是无序的，b列只有在a列值相等的情况下小范围内递增有序，而c列只能在a，b两列相等的情况下小范围内递增有序。
+	
+	  - 就像上面的查询，B+树会先比较a列来确定下一步应该搜索的方向，往左还是往右。如果a列相同再比较b列。但是如果查询条件没有a列，B+树就不知道第一步应该从哪个节点查起。
 
 ### log
 
 - **undo log**：回滚日志，用于记录数据修改前的信息，和redo log相反
   - 事务回滚，mvcc
-
-- **redo log**：重做日志，用来实现事务的持久性，该日志由两部分组成，redo log buffer和redo log，前者存在内存当中，后置存在磁盘当中
-- 记录内存操作记录，一般用于数据恢复
-	
-- bin log
+- **redo log**：当我们修改的时候，写完内存了，但数据还没真正写到磁盘的时候。此时我们的数据库挂了，我们可以根据`redo log`来对数据进行恢复。因为`redo log`是顺序IO，所以**写入的速度很快**，并且`redo log`记载的是物理变化（xxxx页做了xxx修改），文件的体积很小，**恢复速度很快**
+  - 用来实现事务的持久性，该日志由两部分组成，redo log buffer和redo log，前者存在内存当中，后置存在磁盘当中
+  - 记录内存操作记录，一般用于数据恢复
+- **bin log**：记录了数据库表结构和表数据的变更，每条变更的sql都记录下来
+  - 主要用于数据复制和恢复数据
 
 ### 分库分表
 
