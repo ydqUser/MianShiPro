@@ -357,8 +357,7 @@
             // 相遇点，即为环入口
             return fast;
         }
-
-
+[refer](https://blog.csdn.net/yangruxi/article/details/80333000)
 
 ### 如何在接口中优雅引入重试机制
 

@@ -1,13 +1,49 @@
+<!-- TOC -->
+
+- [java内存区域与内存溢出异常](#java内存区域与内存溢出异常)
+- [垃圾收集器与内存分配策略](#垃圾收集器与内存分配策略)
+- [虚拟机性能监控与故障处理工具](#虚拟机性能监控与故障处理工具)
+- [调优](#调优)
+- [加载class文件的原理机制](#加载class文件的原理机制)
+    - [双亲委派模型](#双亲委派模型)
+- [对象创建过程](#对象创建过程)
+- [垃圾收集器](#垃圾收集器)
+
+<!-- /TOC -->
+
+
+to:
 [refer](https://www.jb51.net/it/753914.html)
 [refer2](https://www.jb51.net/it/743799.html)
 [refer3](https://www.jb51.net/it/743429.html)
 
 
+[单例对象会被回收吗](https://www.cnblogs.com/love-htt/p/13884361.html)
+
+
 ![JVM内存结构](https://gitee.com/lylw/image/raw/master/jvm/rda.jpg)
 ![堆内存划分](https://gitee.com/lylw/image/raw/master/jvm/alloc.jpeg)
-#### 地方方式
 
-#### JVM加载class文件的原理机制
+
+
+
+
+
+### java内存区域与内存溢出异常
+
+### 垃圾收集器与内存分配策略
+
+### 虚拟机性能监控与故障处理工具
+
+### 调优
+
+### 类文件结构
+
+### 虚拟机类加载机制
+
+### 虚拟机字节码执行引擎
+
+### 加载class文件的原理机制
 - 加载
 - 连接
     - 验证
@@ -15,19 +51,21 @@
     - 解析：将符号引用替换为直接引用
 - 初始化：如果类存在直接的父类并且这个类还没有被初始化，那么就先初始化父类；依次执行初始化语句
 
-#### 对象创建过程
+#### 双亲委派模型
+
+[refer](https://mp.weixin.qq.com/s/Q0MqcvbeI7gAcJH5ZaQWgA)
+
+### 对象创建过程
 - 首先去检查这个指令的参数是否能在常量池中定义到一个类的符号引用，然后加载这个类
 - 为对象分配内存。 指针碰撞 空闲列表 。。 本地线程分配缓冲(TLAB)
 - 将除对象头外的对象内存空间初始化为0
 - 对对象头进行必要设置
 
 
-#### 双亲委派模型
-
-[refer](https://mp.weixin.qq.com/s/Q0MqcvbeI7gAcJH5ZaQWgA)
 
 
-#### 垃圾收集器
+
+### 垃圾收集器
 
 - Serial收集器： 单线程的收集器，收集垃圾时，必须stop the world，使用复制算法。
 - ParNew收集器： Serial收集器的多线程版本，也需要stop the world，复制算法。

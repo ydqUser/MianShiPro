@@ -2,6 +2,10 @@
 <!-- TOC -->
 
 - [Thread](#thread)
+    - [线程状态](#线程状态)
+    - [上下文切换](#上下文切换)
+    - [重要方法](#重要方法)
+    - [守护线程](#守护线程)
 - [锁](#锁)
     - [死锁 活锁 饥饿](#死锁-活锁-饥饿)
     - [Synchronised](#synchronised)
@@ -17,17 +21,20 @@
         - [设计思想](#设计思想)
         - [使用场景](#使用场景-1)
     - [注意事项](#注意事项)
-        - [重要方法](#重要方法)
+        - [重要方法](#重要方法-1)
 - [AQS](#aqs)
     - [AQS](#aqs-1)
     - [CountDownLatch](#countdownlatch)
 - [线程池](#线程池)
     - [问题](#问题)
+- [other](#other)
+    - [竞态条件](#竞态条件)
+    - [Thread dump](#thread-dump)
 - [HashMap和ThreadLocalMap区别](#hashmap和threadlocalmap区别)
 
 <!-- /TOC -->
 
-lock接口在多线程和并发编程中最大的优势是它们为读和写分别提供了锁
+《java并发编程实战》
 
 
 https://www.cnblogs.com/dolphin0520/category/1426288.html
@@ -36,8 +43,52 @@ https://www.cnblogs.com/dolphin0520/category/1426288.html
 
 ![image](https://gitee.com/lylw/image/raw/master/Thread/Thread.jpg)
 
-https://www.cnblogs.com/dolphin0520/p/3920357.html
+##### 线程状态
+[refer](https://www.cnblogs.com/dolphin0520/p/3920357.html)
+![线程状态](https://gitee.com/lylw/image/raw/master/Thread/thread_state.jpeg)
 
+- 新建状态（New）
+    - 用new语句创建的线程处于新建状态，此时它和其他Java对象一样，仅仅在堆区中被分配了内存。
+- 就绪状态（Runnable）
+    - 当一个线程对象创建后，其他线程调用它的start()方法，该线程就进入就绪状态，Java虚拟机会为它创建方法调用栈和程序计数器。处于这个状态的线程位于可运行池中，等待获得CPU的使用权。
+- 运行状态（Running）
+    - 处于这个状态的线程占用CPU，执行程序代码。只有处于就绪状态的线程才有机会转到运行状态。
+- 阻塞状态（Blocked）
+    - 阻塞状态是指线程因为某些原因放弃CPU，暂时停止运行。当线程处于阻塞状态时，Java虚拟机不会给线程分配CPU。直到线程重新进入就绪状态，它才有机会转到运行状态。
+    - 阻塞状态可分为以下3种：
+        - 位于对象等待池中的阻塞状态（Blocked in object’s wait pool）：当线程处于运行状态时，如果执行了某个对象的wait()方法，Java虚拟机就会把线程放到这个对象的等待池中，这涉及到“线程通信”的内容。
+        - 位于对象锁池中的阻塞状态（Blocked in object’s lock pool）：当线程处于运行状态时，试图获得某个对象的同步锁时，如果该对象的同步锁已经被其他线程占用，Java虚拟机就会把这个线程放到这个对象的锁池中，这涉及到“线程同步”的内容。
+        - 其他阻塞状态（Otherwise Blocked）：当前线程执行了sleep()方法，或者调用了其他线程的join()方法，或者发出了I/O请求时，就会进入这个状态。
+- 死亡状态（Dead）
+    - 当线程退出run()方法时，就进入死亡状态，该线程结束生命周期
+
+##### 上下文切换
+
+当运行一个线程的过程中，转去运行另一个线程，这个过程叫线程上下文切换
+
+- 由于可能当前线程的任务并没有执行完毕，所以在切换时需要保存线程的运行状态，以便下次重新切换回来时能够继续切换之前的状态运行
+    - 程序计数器的值：因为下次恢复时需要知道在这之前当前线程已经执行到哪条指令了，所以需要记录程序计数器的值
+    - CPU寄存器的状态：线程正在进行某个计算的时候被挂起了，那么下次继续执行的时候需要知道之前挂起时变量的值时多少，因此需要记录CPU寄存器的状态
+- 线程的上下文切换实际上就是存储和恢复CPU状态的过程，使得线程执行能够从中断点恢复执行
+
+##### 重要方法
+
+- start
+    - 系统会开启一个新的线程来执行用户定义的子任务，在这个过程中，会为相应的线程分配需要的资源
+- yield
+    - 会让线程交出CPU权限，*不会释放锁*；只能让拥有相同优先级(或更高优先级)的线程有获取CPU执行时间的机会
+    - 调用yield方法并不会让线程进入阻塞状态，而是让线程重回就绪状态，它只需要等待重新获取CPU执行时间，这一点是和sleep方法不一样的
+- join
+    - t.join();  // 调用t的join方法，指定t执行完毕后，才会继续执行。是用wait方法实现的(线程isAlive的情况下，wait)
+    - join方法是用wait方法实现的。所以会让线程进入阻塞状态，释放对象锁，并交出CPU执行权限
+- interrupt
+    - 将中断标志位置为true，使得处于阻塞状态的线程抛出中断异常。
+
+##### 守护线程
+- 守护线程和用户线程的区别在于：守护线程依赖于创建它的线程，而用户线程则不依赖。
+    - 如果在main线程中创建了一个守护线程，当main方法运行完毕之后，守护线程也会随着消亡。而用户线程则不会，用户线程会一直运行直到其运行完毕。
+    - 在JVM中，像垃圾收集器线程就是守护线程
+    
 #### 锁
 
 ##### 死锁 活锁 饥饿
@@ -60,6 +111,13 @@ https://www.cnblogs.com/dolphin0520/p/3920357.html
 
 ##### Synchronised
 
+用法：修饰普通方法、静态方法、静态代码块对对象实例加锁、静态代码块对class对象加锁
+
+同步代码块：monitorenter/monitorexit指令
+同步方法：
+
+
+
 ##### wait/notify
 
 - `wait` 
@@ -67,10 +125,23 @@ https://www.cnblogs.com/dolphin0520/p/3920357.html
 
 wait/notify/notifyall的判断条件要放到while循环中，不能用if，否则会发生虚假唤醒的情况
 ##### lock
+- Lock是synchronized的扩展版，提供了Lock提供了无条件的、可轮询的(tryLock方法)、定时的(tryLock带参方法)、可中断的(lockInterruptibly)、可多条件队列的(newCondition方法)锁操作
+- 支持非公平锁(默认)和公平锁，synchronized只支持非公平锁
+- 最大的优势是为读和写分别提供了锁
+
+- qa1: 实现一个高效缓存，允许多个用户读，但只允许一个用户写，以此保证完整性，如何实现
+    - 定义`ReadWriteLock lock`, `lock.readLock();`为读锁，`lock.writeLock();`为写锁
 
 #### volatile
 
 refer：[关键字解析](https://www.cnblogs.com/dolphin0520/p/3920373.html)
+
+volatile关键字的作用是：保证变量的可见性：保证读取数据时只从主存空间读取，修改数据直接修改到主存空间中去。但是线程安全是两方面的：原子性和可见性。无法保证原子性
+
+synchronized比较
+- volatile只能保证可见性，synchronized可保证原子性和可见性
+- volatile轻量级，只能修饰变量；synchronized重量级，还可修饰方法。
+- volatile不会造成线程的阻塞，而synchronized可能会造成线程的阻塞
 
 ##### 原子性、可见性、有序性
 - 原子性：一个操作或多个操作，要么全部执行并且执行的过程不会被任何因素打断，要么就都不执行
@@ -460,23 +531,73 @@ java线程池的常见参数：
 线程池种类：
 - newCachedThreadPool创建一个可缓存线程的线程池，如果线程池长度超过处理需要，可灵活回收空闲线程，若无可回收，则新建线程。
     - 使用SynchronousQueue，是一个没有容量的阻塞队列。每个插入操作必须等待另一个线程的对应移除操作。这意味着，如果主线程提交任务的速度高于线程池中处理任务的速度时，CachedThreadPool会不断创建新线程。极端情况下，CachedThreadPool会因为创建过多线程而耗尽CPU资源
+    - 线程核心数为0，最大线程数Integer.MAX_VALUE，非核心线程数空闲存活时间60s
 - newFixedThreadPool 创建一个定长线程池，可控制线程最大并发数，超出的线程会在队列中等待。
+    - 如果线程数少于核心线程，创建核心线程执行任务；如果线程数大于核心线程，把任务添加到LinkedBlockingQueue阻塞队列
+    - 核心线程数和最大线程数大小一样；没有所谓的非空闲时间，即keepAliveTime为0；阻塞队列为无界队列LinkedBlockingQueue
 - newScheduledThreadPool 创建一个周期线程池，支持定时及周期性任务执行。
+    - keepAliveTime为0
 - newSingleThreadExecutor 创建一个单线程化的线程池，它只会用唯一的工作线程来执行任务，保证所有任务按照指定顺序(FIFO, LIFO, 优先级)执行。
+    - 阻塞队列是LinkedBlockingQueue；keepAliveTime为0
 
+使用场景：
+- newFixedThreadPool : 适用于处理CPU密集型的任务，确保CPU在长期被工作线程使用的情况下，尽可能的少的分配线程，即适用执行长期的任务。
+- newCachedThreadPool:  用于并发执行大量短期的小任务。
+- newSingleThreadExecutor: 适用于串行执行任务的场景，一个任务一个任务地执行。
+- newScheduledThreadPool ：周期性执行任务的场景，需要限制线程数量的场景
 
+线程池状态：
+![线程池状态](https://gitee.com/lylw/image/raw/master/Thread/thread_pool_status.png)
 
+- RUNNING
+    - 该状态的线程池会接收新任务，并处理阻塞队列中的任务;
+    - 调用线程池的shutdown()方法，可以切换到SHUTDOWN状态;
+    - 调用线程池的shutdownNow()方法，可以切换到STOP状态;
+- SHUTDOWN
+    - 该状态的线程池不会接收新任务，但会处理阻塞队列中的任务；
+    - 队列为空，并且线程池中执行的任务也为空,进入TIDYING状态;
+- STOP
+    - 该状态的线程不会接收新任务，也不会处理阻塞队列中的任务，而且会中断正在运行的任务；
+    - 线程池中执行的任务为空,进入TIDYING状态;
+- TIDYING
+    - 该状态表明所有的任务已经运行终止，记录的任务数量为0。
+    - terminated()执行完毕，进入TERMINATED状态
+- TERMINATED
+    - 该状态表示线程池彻底终止
 
 
 ##### 问题
-- Executor和Executors区别
+- Executor和Executors区别(没看懂)
     - Executors工具类的不同方法按照我们的需求创建了不同的线程池，来满足业务的需求。
     - Executor 接口对象能执行我们的线程任务。
     - ExecutorService 接口继承了 Executor 接口并进行了扩展，提供了更多的方法我们能获得任务执行的状态并且可以获取任务的返回值。
     - 使用 ThreadPoolExecutor 可以创建自定义线程池。
     - Future 表示异步计算的结果，他提供了检查计算是否完成的方法，以等待计算的完成，并可以使用 get()方法获取计算的结果。
      
-     
+#### other
+
+##### 竞态条件
+竞态条件：指设备或系统出现不恰当的执行时序，而得到不正确的结果(《java并发编程实战》)   
+
+```java
+@NotThreadSafe
+public class LazyInitRace {
+    private ExpensiveObject instance = null;
+
+    public ExpensiveObject getInstance() {
+        if (instance == null)
+            instance = new ExpensiveObject();
+        return instance;
+    }
+}
+```
+上述例子中，表现一种很常见的竞态条件类型:“先检查后执行”。还有很常见的竞态条件“读取-修改-写入”三连
+
+如何看待：
+- 警惕复合操作，当多个原子操作合在一起的时候，并不一定仍然是一个原子操作，此时需要用同步的手段来保证原子性。
+- 使用本身是线程安全的类，这样在很大程度上避免了未知的风险
+
+##### Thread dump
 
 #### HashMap和ThreadLocalMap区别
 
